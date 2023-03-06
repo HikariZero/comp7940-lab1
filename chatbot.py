@@ -3,16 +3,24 @@ from telegram.ext import Updater, CommandHandler, MessageHandler, Filters,Callba
 import configparser
 import logging
 import redis
+import os
 global redis1
+
 def main():
+
+    updater = Updater(token=(os.environ['ACCESS_TOKEN']), use_context=True)
+    dispatcher = updater.dispatcher
+    global redis1
+    redis1 = redis.Redis(host=(os.environ['HOST']), password=
+    (os.environ['PASSWORD']), port=(os.environ['REDISPORT']))
 
 # Load your token and create an Updater for your Bot
     config = configparser.ConfigParser()
     config.read('config.ini')
-    updater = Updater(token=(config['TELEGRAM']['ACCESS_TOKEN']), use_context=True)
-    dispatcher = updater.dispatcher
-    global redis1
-    redis1 = redis.Redis(host=(config['REDIS']['HOST']), password=(config['REDIS']['PASSWORD']), port=(config['REDIS']['REDISPORT']))
+    #updater = Updater(token=(config['TELEGRAM']['ACCESS_TOKEN']), use_context=True)
+    #dispatcher = updater.dispatcher
+    #global redis1
+    #redis1 = redis.Redis(host=(config['REDIS']['HOST']), password=(config['REDIS']['PASSWORD']), port=(config['REDIS']['REDISPORT']))
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',level=logging.INFO)
 
     echo_handler = MessageHandler(Filters.text & (~Filters.command), echo)
