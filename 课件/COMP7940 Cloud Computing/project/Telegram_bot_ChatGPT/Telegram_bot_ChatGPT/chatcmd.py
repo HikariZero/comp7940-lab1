@@ -8,6 +8,7 @@ import logging
 import redis
 import logging
 global redis1
+import requests
 
 
 # 获取 api
@@ -18,9 +19,12 @@ def get_config():
     return configs
 openai.api_key = get_config()['api']
 
+API_KEY = '73787eaea250fccf10c6761975dafe29'
+CITY_NAME = 'Qinhuangdao'
+
 def start(update, context):
     """发送欢迎消息"""
-    message = "你好！我是机器人，有什么问题都可以问我哦~"
+    message = "hello there"
     update.message.reply_text(message)
     # 输出调试信息
     logging.debug(f"Sent a welcome message to {update.effective_chat.id}. Message content: {message}")
@@ -59,6 +63,19 @@ class ChatGPT:
             print(f"错误代码：{e}")
     '''
 
+def get_weather():
+    #访问OpenWeather API获取当前天气
+    url = f'http://api.openweathermap.org/data/2.5/weather?q={CITY_NAME}&appid={API_KEY}'
+    response=requests.get(url)
+    data = response.json()
+
+    #解析返回的JSON数据并提取所需的天气信息
+    weather = data['weather'][0]['description']
+    temperature = round(data['main']['temp'] - 273.15,1)#将温度从开尔文转换为摄氏度
+
+    # 返回格式化后的天气信息
+    return f'weather：{weather}，温度：{temperature}℃'
+
 def main():
     config = configparser.ConfigParser()
     config.read('config.ini')
@@ -69,7 +86,7 @@ def main():
     redis1 = redis.Redis(host=(config['REDIS']['HOST']), password=(config['REDIS']['PASSWORD']), port=(config['REDIS']['REDISPORT']))
 
     logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
-
+    updater.dispatcher.add_handler(CommandHandler('weather', weather_handler))
     echo_handler = MessageHandler(Filters.text & (~Filters.command), echo)
     dispatcher.add_handler(echo_handler)
 
@@ -86,12 +103,16 @@ def echo(update, context):
     # 输出调试信息
     logging.debug(f"Echoed the message {text} to {update.effective_chat.id}")
 
+def weather_handler(update, context):
+    #当用户发送 /weather 命令时，调用get_weather函数并将结果返回给用户
+    message = get_weather()
+    update.message.reply_text(message)
 
 def ChatGPT_command(update: Update, context: CallbackContext) -> None:
     """使用ChatGPT API回复消息"""
     user = update.message.chat_id
     chat = ChatGPT(user)
-
+    global redis1
     # 获取命令参数
     message = " ".join(context.args)
     print ('msg:'+message)
@@ -101,7 +122,7 @@ def ChatGPT_command(update: Update, context: CallbackContext) -> None:
     # 调用OpenAI的API进行对话生成
     response = chat.ask_gpt()
     print ('res:'+response)
-
+    redis1.incr(response)
     # 将对话生成的结果添加到历史消息中
     chat.messages.append({"role": "assistant", "content": response})
 
